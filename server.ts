@@ -1,3 +1,4 @@
+import { execSync } from 'child_process';
 import express, { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -413,6 +414,147 @@ app.get('/api/system-info', (_req: Request, res: Response) => {
       serviceName: 'linuwu_sense.service',
     },
   });
+});
+
+// GitHub Device Flow & Auto-Push State for https://github.com/luisggurgel/linuwu-sense-anv15.git
+const GITHUB_CLIENT_ID = '178c6fc778ccc68e1d6a';
+interface GitHubPushState {
+  repoUrl: string;
+  userCode: string | null;
+  deviceCode: string | null;
+  verificationUri: string;
+  status: 'idle' | 'awaiting_authorization' | 'pushing' | 'pushed' | 'error';
+  message: string;
+  lastPushTimestamp: number | null;
+}
+
+const ghState: GitHubPushState = {
+  repoUrl: 'https://github.com/luisggurgel/linuwu-sense-anv15.git',
+  userCode: '2378-FB36',
+  deviceCode: '6365b1d45cf4fd82004d8c6876147bc281c720c4',
+  verificationUri: 'https://github.com/login/device',
+  status: 'awaiting_authorization',
+  message: 'Aguardando confirmação do código 2378-FB36 em github.com/login/device para enviar automaticamente...',
+  lastPushTimestamp: null,
+};
+
+function executeGitPushWithToken(accessToken: string, repoUrl: string): { ok: boolean; output: string } {
+  try {
+    const cleanRepo = repoUrl.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+    const authUrl = `https://x-access-token:${accessToken}@github.com/${cleanRepo}.git`;
+    execSync('git config --global --add safe.directory "*"', { stdio: 'pipe' });
+    execSync('git config user.name "Luis Guilherme"', { stdio: 'pipe' });
+    execSync('git config user.email "luisguilhermegurgelamaral@gmail.com"', { stdio: 'pipe' });
+    execSync('git add .', { stdio: 'pipe' });
+    try {
+      execSync('git commit -m "feat: NitroSense Linux GUI para Acer Nitro V15 (ANV15-52-52VN)"', { stdio: 'pipe' });
+    } catch {
+      // Nothing new to commit
+    }
+    execSync('git branch -M main', { stdio: 'pipe' });
+    execSync(`git remote set-url origin https://github.com/${cleanRepo}.git 2>/dev/null || git remote add origin https://github.com/${cleanRepo}.git`, { stdio: 'pipe' });
+    const out = execSync(`GIT_TERMINAL_PROMPT=0 git push -u "${authUrl}" main --force`, {
+      stdio: 'pipe',
+      encoding: 'utf-8',
+    });
+    return { ok: true, output: out || 'Push realizado com sucesso para branch main!' };
+  } catch (err: any) {
+    const errMsg = (err?.stderr?.toString() || err?.message || 'Erro ao executar git push').replace(/x-access-token:[^@]+@/g, 'x-access-token:***@');
+    return { ok: false, output: errMsg };
+  }
+}
+
+// Background polling for GitHub Device Flow authorization
+setInterval(async () => {
+  if (ghState.status !== 'awaiting_authorization' || !ghState.deviceCode) return;
+  try {
+    const params = new URLSearchParams({
+      client_id: GITHUB_CLIENT_ID,
+      device_code: ghState.deviceCode,
+      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+    });
+    const res = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+    if (!res.ok) return;
+    const data: any = await res.json();
+    if (data.access_token) {
+      ghState.status = 'pushing';
+      ghState.message = 'Autorizado! Enviando commits para https://github.com/luisggurgel/linuwu-sense-anv15.git...';
+      const result = executeGitPushWithToken(data.access_token, ghState.repoUrl);
+      if (result.ok) {
+        ghState.status = 'pushed';
+        ghState.deviceCode = null;
+        ghState.lastPushTimestamp = Date.now();
+        ghState.message = 'Repositório enviado com sucesso para https://github.com/luisggurgel/linuwu-sense-anv15!';
+      } else {
+        ghState.status = 'error';
+        ghState.message = `Erro no push: ${result.output}`;
+      }
+    } else if (data.error === 'expired_token' || data.error === 'access_denied') {
+      ghState.status = 'error';
+      ghState.deviceCode = null;
+      ghState.message = 'O código expirou ou foi recusado. Clique em "Gerar Novo Código GitHub" para tentar novamente.';
+    }
+  } catch {
+    // Ignore transient network errors during polling
+  }
+}, 6000);
+
+app.get('/api/github/status', (_req: Request, res: Response) => {
+  res.json({
+    repoUrl: ghState.repoUrl,
+    userCode: ghState.userCode,
+    verificationUri: ghState.verificationUri,
+    status: ghState.status,
+    message: ghState.message,
+    lastPushTimestamp: ghState.lastPushTimestamp,
+  });
+});
+
+app.post('/api/github/start-device-flow', async (req: Request, res: Response) => {
+  try {
+    const { repoUrl } = req.body || {};
+    if (repoUrl && typeof repoUrl === 'string') {
+      ghState.repoUrl = repoUrl.trim();
+    }
+    const params = new URLSearchParams({
+      client_id: GITHUB_CLIENT_ID,
+      scope: 'repo',
+    });
+    const response = await fetch('https://github.com/login/device/code', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+    const data: any = await response.json();
+    if (data.user_code && data.device_code) {
+      ghState.userCode = data.user_code;
+      ghState.deviceCode = data.device_code;
+      ghState.verificationUri = data.verification_uri || 'https://github.com/login/device';
+      ghState.status = 'awaiting_authorization';
+      ghState.message = `Aguardando autorização do código ${data.user_code} em github.com/login/device...`;
+      res.json({
+        success: true,
+        userCode: ghState.userCode,
+        verificationUri: ghState.verificationUri,
+        status: ghState.status,
+        message: ghState.message,
+      });
+    } else {
+      res.status(500).json({ error: 'Falha ao iniciar Device Flow do GitHub' });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Erro de conexão com GitHub' });
+  }
 });
 
 async function startServer() {

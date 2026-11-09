@@ -1,32 +1,87 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  AlertTriangle,
   Check,
   Clipboard,
   Download,
+  ExternalLink,
   FolderGit2,
   Github,
-  Play,
+  KeyRound,
+  RefreshCw,
   RotateCcw,
   ShieldCheck,
   Terminal,
 } from 'lucide-react';
-import { ANV15_SPECS } from '../utils/fanMath';
 import { TelemetryData } from '../utils/nitroTypes';
 
 interface DriverAndGitViewProps {
   telemetry: TelemetryData | null;
 }
 
+interface GitHubStatusData {
+  repoUrl: string;
+  userCode: string | null;
+  verificationUri: string;
+  status: 'idle' | 'awaiting_authorization' | 'pushing' | 'pushed' | 'error';
+  message: string;
+  lastPushTimestamp: number | null;
+}
+
 export const DriverAndGitView: React.FC<DriverAndGitViewProps> = ({ telemetry }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [githubUser, setGithubUser] = useState<string>('luisguilhermegurgelamaral');
-  const [repoName, setRepoName] = useState<string>('linuwu-sense-anv15-gui');
+  const [githubUser, setGithubUser] = useState<string>('luisggurgel');
+  const [repoName, setRepoName] = useState<string>('linuwu-sense-anv15');
+  const [ghStatus, setGhStatus] = useState<GitHubStatusData | null>(null);
+  const [loadingCode, setLoadingCode] = useState<boolean>(false);
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2500);
+  };
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch('/api/github/status');
+        if (res.ok) {
+          const data: GitHubStatusData = await res.json();
+          setGhStatus(data);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchStatus();
+    const timer = setInterval(fetchStatus, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleGenerateNewDeviceCode = async () => {
+    setLoadingCode(true);
+    try {
+      const res = await fetch('/api/github/start-device-flow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoUrl: `https://github.com/${githubUser}/${repoName}.git` }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGhStatus((prev) =>
+          prev
+            ? {
+                ...prev,
+                userCode: data.userCode,
+                verificationUri: data.verificationUri,
+                status: data.status,
+                message: data.message,
+              }
+            : null
+        );
+      }
+    } finally {
+      setLoadingCode(false);
+    }
   };
 
   const installScriptContent = `#!/usr/bin/env bash
@@ -151,13 +206,13 @@ git push -u origin main
             </div>
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                Repositório GitHub Pronto para Publicação
+                Envio Direto para {githubUser}/{repoName}
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-                  Código 100% Pronto
+                  {ghStatus?.status === 'pushed' ? 'ENVIADO COM SUCESSO' : 'PRONTO PARA PUSH'}
                 </span>
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Envie o aplicativo testado para a sua conta do GitHub com apenas 3 comandos.
+                Autorize via código oficial de dispositivo do GitHub para que este servidor faça o push automático na branch main.
               </p>
             </div>
           </div>
@@ -171,6 +226,56 @@ git push -u origin main
             <FolderGit2 className="w-4 h-4 text-red-400" />
             <span>Abrir no GitHub</span>
           </a>
+        </div>
+
+        {/* Live GitHub Device OAuth Auto-Push Box */}
+        <div className="mb-4 p-4 rounded-xl bg-slate-950/90 border border-red-500/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-mono text-red-400 font-bold">
+              <KeyRound className="w-4 h-4" />
+              <span>AUTENTICAÇÃO AUTOMÁTICA GITHUB DEVICE FLOW</span>
+            </div>
+            <p className="text-xs text-slate-300">
+              {ghStatus?.message || 'Carregando status de envio...'}
+            </p>
+            {ghStatus?.userCode && ghStatus.status === 'awaiting_authorization' && (
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <span className="text-xs text-slate-400">1. Copie o código:</span>
+                <button
+                  onClick={() => copyToClipboard(ghStatus.userCode!, 'device_code')}
+                  aria-label="Copiar código de autorização GitHub"
+                  className="px-3 py-1 rounded-lg bg-red-600/20 border border-red-500 text-red-300 font-mono font-black text-sm tracking-widest flex items-center gap-2 hover:bg-red-600/30 transition-all"
+                >
+                  <span>{ghStatus.userCode}</span>
+                  {copiedKey === 'device_code' ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Clipboard className="w-3.5 h-3.5" />
+                  )}
+                </button>
+                <span className="text-xs text-slate-400">2. Cole em:</span>
+                <a
+                  href={ghStatus.verificationUri || 'https://github.com/login/device'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition-all"
+                >
+                  <span>github.com/login/device</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleGenerateNewDeviceCode}
+            disabled={loadingCode}
+            aria-label="Gerar novo código GitHub"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-red-500/60 text-xs font-mono text-slate-200 transition-all self-start md:self-center shrink-0"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingCode ? 'animate-spin' : ''}`} />
+            <span>Novo Código</span>
+          </button>
         </div>
 
         {/* Inputs to customize username and repo */}

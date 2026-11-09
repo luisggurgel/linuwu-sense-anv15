@@ -54,8 +54,8 @@ Este projeto foi especialmente calibrado e testado para a plataforma **Acer Nitr
 
 ### 1. Clonar o repositório
 ```bash
-git clone https://github.com/luisguilhermegurgelamaral/linuwu-sense-anv15-gui.git
-cd linuwu-sense-anv15-gui
+git clone https://github.com/luisggurgel/linuwu-sense-anv15.git
+cd linuwu-sense-anv15
 ```
 
 ### 2. Executar o instalador automático (com permissão sudo)
