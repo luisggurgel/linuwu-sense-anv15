@@ -1,0 +1,6 @@
+{
+  "name": "NitroSense Linux - Acer ANV15-52",
+  "description": "Interface gráfica para controle de ventoinhas, perfis térmicos e monitoramento de temperatura do notebook Acer Nitro V15 (ANV15-52-52VN) baseado no módulo Linuwu-Sense.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
