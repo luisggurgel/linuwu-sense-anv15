@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+server.js
 coverage/
 .DS_Store
 *.log
@@ -8,3 +9,5 @@ coverage/
 !.env.example
 .playwright-cli/
 .aistudio/
+public/assets/aistudio/
+bun.lock

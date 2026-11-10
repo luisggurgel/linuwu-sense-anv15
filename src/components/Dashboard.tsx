@@ -108,7 +108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* CPU Temp Gauge */}
         <Gauge
-          title="CPU Intel Core"
+          title="Core i5-13420H"
           value={cpuTemp}
           unit="°C"
           min={30}
@@ -121,7 +121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* GPU Temp Gauge */}
         <Gauge
-          title="GPU GeForce RTX"
+          title="RTX 4060 (8GB)"
           value={gpuTemp}
           unit="°C"
           min={30}
@@ -184,50 +184,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Hardware Status: Acer Nitro V 15 ANV15-52-52VN Specifics */}
         <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg backdrop-blur-sm lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
               <GaugeIcon className="w-4 h-4 text-red-400" />
-              Especificações e Estado do Hardware (ANV15-52)
+              Ficha Técnica Oficial & Estado (ANV15-52-52VN)
             </h3>
             <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-              EC Window 0xFE708000
+              Fedora Linux • EC 0xFE708000
             </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
             <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[10px] text-slate-400 uppercase">Driver do Kernel</span>
-              <div className="text-white font-bold mt-1 text-sm flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                Linuwu-Sense
-              </div>
-              <span className="text-[10px] text-slate-400 mt-1 block">nitro_v4=1</span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[10px] text-slate-400 uppercase">Modo da Ventoinha</span>
-              <div className="text-white font-bold mt-1 text-sm capitalize">
-                {telemetry?.fanMode === 'auto' ? 'Automático (EC)' : telemetry?.fanMode === 'max' ? 'Turbo Máximo' : 'Curva Custom'}
-              </div>
-              <span className="text-[10px] text-slate-400 mt-1 block">sysfs fan_speed</span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[10px] text-slate-400 uppercase">Consumo Estimado</span>
+              <span className="text-[10px] text-slate-400 uppercase">Processador (CPU)</span>
               <div className="text-white font-bold mt-1 text-sm">
-                {(telemetry?.cpuPowerWatts ?? 20) + (telemetry?.gpuPowerWatts ?? 15)} W
+                Core i5-13420H
               </div>
-              <span className="text-[10px] text-slate-400 mt-1 block">PL1/PL2 Adaptativo</span>
+              <span className="text-[10px] text-slate-400 mt-1 block">8C/12T • até 4.60 GHz</span>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[10px] text-slate-400 uppercase">Alimentação AC</span>
+              <span className="text-[10px] text-slate-400 uppercase">Placa Gráfica (dGPU)</span>
+              <div className="text-emerald-400 font-bold mt-1 text-sm">
+                RTX 4060 (8 GB)
+              </div>
+              <span className="text-[10px] text-slate-400 mt-1 block">GDDR6 • + UHD Graphics</span>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-[10px] text-slate-400 uppercase">Memória & Tela</span>
+              <div className="text-white font-bold mt-1 text-sm">
+                16 GB DDR5
+              </div>
+              <span className="text-[10px] text-slate-400 mt-1 block">5200MHz • 15.6" 165Hz IPS</span>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              <span className="text-[10px] text-slate-400 uppercase">Driver & Energia</span>
               <div className="text-white font-bold mt-1 text-sm flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${telemetry?.acConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                {telemetry?.acConnected ? 'Carregador Conectado' : 'Operando em Bateria'}
+                {(telemetry?.cpuPowerWatts ?? 20) + (telemetry?.gpuPowerWatts ?? 15)} W Total
               </div>
               <span className="text-[10px] text-slate-400 mt-1 block">
-                {telemetry?.batteryLimiterActive ? 'Limite 80% Ativo' : 'Carga Normal'}
+                {telemetry?.batteryLimiterActive ? 'Limite 80% Ativo' : 'Bateria 57Wh'} • nitro_v4=1
               </span>
             </div>
           </div>

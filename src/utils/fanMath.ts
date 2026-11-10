@@ -5,15 +5,25 @@
 
 import { FanCurvePoint, ThermalProfileId, ThermalProfileInfo } from './nitroTypes';
 
-// Specifications for Acer Nitro V15 (ANV15-52-52VN)
+// Official Specifications for Acer Nitro V 15 (ANV15-52-52VN)
 export const ANV15_SPECS = {
   modelName: 'Acer Nitro V 15 (ANV15-52-52VN)',
   dmiProductName: 'Nitro ANV15-52',
+  cpuModel: 'Intel Core i5-13420H (8C/12T até 4.60 GHz)',
+  gpuModel: 'NVIDIA GeForce RTX 4060 Laptop GPU (8 GB GDDR6)',
+  igpuModel: 'Intel UHD Graphics',
+  ramSpecs: '16 GB DDR5 5200 MHz (Expansível até 32 GB)',
+  storageSpecs: '512 GB SSD NVMe PCIe 4.0 x4',
+  displaySpecs: '15.6" IPS Full HD (1920x1080) 165 Hz',
+  batterySpecs: '57 Wh Li-Ion • Fonte AC 135W',
+  keyboardSpecs: 'ABNT2 Retroiluminado Branco + Tecla NitroSense',
+  osTarget: 'Fedora Linux (x86_64)',
+  quirkName: 'quirk_acer_nitro_anv15_52',
   ecWindowBase: '0xFE708000',
   ecProfileModeOffset: '0x607',
   ec0Q30Path: '\\_SB.PC00.LPCB.EC0._Q30',
-  maxCpuRpm: 5400,
-  maxGpuRpm: 5600,
+  maxCpuRpm: 8600,
+  maxGpuRpm: 8600,
   minFanPercent: 20,
   maxFanPercent: 100,
   idleCpuRpm: 1800,
@@ -26,7 +36,7 @@ export const THERMAL_PROFILES: Record<ThermalProfileId, ThermalProfileInfo> = {
     id: 'eco',
     name: 'Eco',
     namePt: 'Economia (Eco)',
-    description: 'Máxima eficiência energética para bateria. Clock reduzido e ruído mínimo.',
+    description: 'Máxima eficiência energética para bateria (57 Wh). Clock reduzido no i5-13420H e ruído mínimo.',
     ecMode: 4, // anv15_ec_mode_to_profile[4] -> PLATFORM_PROFILE_LOW_POWER
     platformProfile: 'low-power',
     defaultCpuFanPercent: 0, // Auto / Whisper
@@ -40,7 +50,7 @@ export const THERMAL_PROFILES: Record<ThermalProfileId, ThermalProfileInfo> = {
     id: 'quiet',
     name: 'Quiet',
     namePt: 'Silencioso',
-    description: 'Prioriza acústica ultrabaixa. Ventoinhas mantêm RPM moderado e suave.',
+    description: 'Prioriza acústica ultrabaixa. Ventoinhas mantêm RPM moderado e suave (0 RPM em repouso).',
     ecMode: 3, // anv15_ec_mode_to_profile[3] -> PLATFORM_PROFILE_QUIET
     platformProfile: 'quiet',
     defaultCpuFanPercent: 0,
@@ -54,7 +64,7 @@ export const THERMAL_PROFILES: Record<ThermalProfileId, ThermalProfileInfo> = {
     id: 'balanced',
     name: 'Balanced',
     namePt: 'Equilibrado',
-    description: 'Padrão do Nitro V15. Equilíbrio ideal entre temperatura, ruído e desempenho.',
+    description: 'Padrão do Nitro V15 (ANV15-52-52VN). Equilíbrio ideal entre temperatura, ruído e desempenho.',
     ecMode: 2, // anv15_ec_mode_to_profile[2] -> PLATFORM_PROFILE_BALANCED
     platformProfile: 'balanced',
     defaultCpuFanPercent: 0,
@@ -68,7 +78,7 @@ export const THERMAL_PROFILES: Record<ThermalProfileId, ThermalProfileInfo> = {
     id: 'performance',
     name: 'Performance',
     namePt: 'Desempenho',
-    description: 'Aumenta limite de energia da CPU/GPU e acelera curvas térmicas para jogos pesados.',
+    description: 'Libera maior PL1/PL2 no Core i5-13420H e TGP completo na RTX 4060 (8GB) com curvas aceleradas.',
     ecMode: 1, // anv15_ec_mode_to_profile[1] -> PLATFORM_PROFILE_BALANCED_PERFORMANCE
     platformProfile: 'balanced-performance',
     defaultCpuFanPercent: 75,
@@ -76,13 +86,13 @@ export const THERMAL_PROFILES: Record<ThermalProfileId, ThermalProfileInfo> = {
     color: '#f97316', // Orange
     accentBg: 'rgba(249, 115, 22, 0.15)',
     badge: 'PERF',
-    powerLimitWatts: 85,
+    powerLimitWatts: 95,
   },
   turbo: {
     id: 'turbo',
     name: 'Turbo',
     namePt: 'Turbo Máximo',
-    description: 'Ventoinhas travadas em 100% (Modo Nitro V4). Máximo overclock e fluxo de ar.',
+    description: 'Ventoinhas travadas em 100% (até 8600 RPM). Máximo desempenho térmico para a RTX 4060 e i5-13420H.',
     ecMode: 0, // anv15_ec_mode_to_profile[0] -> PLATFORM_PROFILE_PERFORMANCE
     platformProfile: 'performance',
     defaultCpuFanPercent: 100,
@@ -90,7 +100,7 @@ export const THERMAL_PROFILES: Record<ThermalProfileId, ThermalProfileInfo> = {
     color: '#ef4444', // Red
     accentBg: 'rgba(239, 68, 68, 0.2)',
     badge: 'TURBO',
-    powerLimitWatts: 105,
+    powerLimitWatts: 115,
   },
 };
 
@@ -109,6 +119,27 @@ export function mapEcModeToProfile(mode: number): ThermalProfileId {
       return 'quiet';
     case 4:
       return 'eco';
+    default:
+      return 'balanced';
+  }
+}
+
+/**
+ * Maps a Linux ACPI platform_profile string to ThermalProfileId.
+ */
+export function mapPlatformProfileToId(raw: string): ThermalProfileId {
+  const clean = (raw || '').trim().toLowerCase();
+  switch (clean) {
+    case 'low-power':
+      return 'eco';
+    case 'quiet':
+      return 'quiet';
+    case 'balanced':
+      return 'balanced';
+    case 'balanced-performance':
+      return 'performance';
+    case 'performance':
+      return 'turbo';
     default:
       return 'balanced';
   }

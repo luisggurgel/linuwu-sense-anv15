@@ -85,52 +85,47 @@ export const DriverAndGitView: React.FC<DriverAndGitViewProps> = ({ telemetry })
   };
 
   const installScriptContent = `#!/usr/bin/env bash
-# Script de Instalação do NitroSense Linux para Acer Nitro V15 (ANV15-52-52VN)
-# Baseado no módulo de kernel Linuwu-Sense (0x7375646F)
+# Script de Instalação do NitroSense Linux para Acer Nitro V 15 (ANV15-52-52VN | RTX 4060)
+# Otimizado para Fedora Linux (DNF + SELinux) e módulo Linuwu-Sense (0x7375646F)
 
 set -e
 
-echo "=== Instalando dependências e módulo Linuwu-Sense para ANV15-52 ==="
+echo "=== [1/4] Instalando dependências no Fedora Linux ==="
+sudo dnf install -y git make gcc dkms kernel-devel nodejs npm
 
-# 1. Instalar headers do kernel e ferramentas
-if command -v apt-get &>/dev/null; then
-    sudo apt-get update
-    sudo apt-get install -y git build-essential dkms "linux-headers-$(uname -r)"
-elif command -v pacman &>/dev/null; then
-    sudo pacman -S --needed --noconfirm git base-devel linux-headers dkms
-elif command -v dnf &>/dev/null; then
-    sudo dnf install -y git make gcc kernel-devel-$(uname -r) dkms
+echo "=== [2/4] Verificando / instalando módulo Linuwu-Sense ==="
+if ! dkms status -m linuwu_sense 2>/dev/null | grep -q "$(uname -r).*installed"; then
+  TEMP_DIR=$(mktemp -d)
+  git clone --depth 1 https://github.com/0x7375646F/Linuwu-Sense.git "$TEMP_DIR/Linuwu-Sense"
+  cd "$TEMP_DIR/Linuwu-Sense"
+  sudo make install || sudo make LLVM=1 install
+  cd - >/dev/null
+  rm -rf "$TEMP_DIR"
 fi
 
-# 2. Clonar e compilar Linuwu-Sense
-TEMP_DIR=$(mktemp -d)
-git clone --depth 1 https://github.com/0x7375646F/Linuwu-Sense.git "$TEMP_DIR/Linuwu-Sense"
-cd "$TEMP_DIR/Linuwu-Sense"
+echo "=== [3/4] Ativando quirk DMI nativo (quirk_acer_nitro_anv15_52) e permissões sysfs ==="
+sudo rm -f /etc/modprobe.d/linuwu_sense.conf
+sudo modprobe -r acer_wmi 2>/dev/null || true
+sudo modprobe -r linuwu_sense 2>/dev/null || true
+sudo modprobe linuwu_sense || true
+sudo chmod 0666 /sys/firmware/acpi/platform_profile 2>/dev/null || true
+sudo chmod 0666 /sys/module/linuwu_sense/drivers/platform:acer-wmi/acer-wmi/nitro_sense/* 2>/dev/null || true
 
-echo "Compilando e instalando o módulo linuwu_sense..."
-sudo make install
-
-# 3. Configurar parâmetro nitro_v4=1 para o modelo ANV15-52
-echo "Configurando /etc/modprobe.d/linuwu_sense.conf..."
-echo "options linuwu_sense nitro_v4=1" | sudo tee /etc/modprobe.d/linuwu_sense.conf
-
-# 4. Carregar módulo
-sudo modprobe -r acer-wmi 2>/dev/null || true
-sudo modprobe linuwu_sense nitro_v4=1
-
-echo "=== Módulo Linuwu-Sense carregado com sucesso para o Nitro ANV15-52! ==="
+echo "=== [4/4] Compilando interface web e instalando serviço systemd ==="
+npm install --legacy-peer-deps
+npm run build
 `;
 
   const systemdServiceContent = `[Unit]
-Description=NitroSense Linux Daemon para Acer Nitro V15
-After=multi-user.target
+Description=NitroSense Linux GUI Daemon para Acer Nitro V 15 (ANV15-52-52VN)
+After=network.target multi-user.target linuwu_sense.service
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/nitrosense-linux
 ExecStart=/usr/bin/node /opt/nitrosense-linux/server.js
 Restart=always
-RestartSec=5
+RestartSec=3
 User=root
 Environment=NODE_ENV=production
 Environment=PORT=3000
@@ -139,17 +134,8 @@ Environment=PORT=3000
 WantedBy=multi-user.target
 `;
 
-  const gitPushScript = `# 1. Inicializar e comitar o repositório completo
-git init
-git add .
-git commit -m "feat: NitroSense Linux GUI para Acer Nitro V15 (ANV15-52-52VN)"
-git branch -M main
-
-# 2. Conectar ao seu repositório no GitHub
-git remote add origin https://github.com/${githubUser}/${repoName}.git
-
-# 3. Fazer o push para seu GitHub
-git push -u origin main
+  const gitPushScript = `# Na sua máquina Fedora (dentro da pasta linuwu-sense-anv15):
+curl -fsSL https://ais-pre-4p6w2hmzyecu4poeotv3ng-753038670960.us-west2.run.app/api/sync-bundle.sh | bash
 `;
 
   const handleDownloadInstallScript = () => {

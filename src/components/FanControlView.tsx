@@ -26,7 +26,12 @@ interface FanControlViewProps {
   telemetry: TelemetryData | null;
   fanConfig: FanConfig;
   onUpdateFanConfig: (newConfig: Partial<FanConfig>) => void;
-  onApplyFanSpeed: (cpu: number, gpu: number, mode: 'auto' | 'custom' | 'max') => void;
+  onApplyFanSpeed: (
+    cpu: number,
+    gpu: number,
+    mode: 'auto' | 'custom' | 'max',
+    customCurve?: FanCurvePoint[]
+  ) => Promise<{ ok: boolean; writtenToHardware?: boolean; message?: string }> | void;
 }
 
 export const FanControlView: React.FC<FanControlViewProps> = ({
@@ -37,7 +42,10 @@ export const FanControlView: React.FC<FanControlViewProps> = ({
 }) => {
   const [manualCpu, setManualCpu] = useState<number>(fanConfig.cpuSpeedPercent || 50);
   const [manualGpu, setManualGpu] = useState<number>(fanConfig.gpuSpeedPercent || 50);
-  const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
+  const [appliedNotification, setAppliedNotification] = useState<{
+    text: string;
+    isError?: boolean;
+  } | null>(null);
 
   const currentCpuTemp = telemetry?.cpuTemp ?? 48;
   const currentCalculatedFanSpeed = interpolateFanCurve(currentCpuTemp, fanConfig.customCurve);
@@ -56,52 +64,92 @@ export const FanControlView: React.FC<FanControlViewProps> = ({
     }
   };
 
-  const handleApplyManual = () => {
-    onApplyFanSpeed(manualCpu, manualGpu, 'custom');
+  const handleApplyManual = async () => {
     onUpdateFanConfig({
       mode: 'custom',
       cpuSpeedPercent: manualCpu,
       gpuSpeedPercent: manualGpu,
     });
-    setAppliedNotification(`Velocidades aplicadas via sysfs: CPU=${manualCpu}%, GPU=${manualGpu}%`);
-    setTimeout(() => setAppliedNotification(null), 3000);
-  };
-
-  const handleSetMode = (mode: 'auto' | 'custom' | 'max') => {
-    onUpdateFanConfig({ mode });
-    if (mode === 'auto') {
-      onApplyFanSpeed(0, 0, 'auto');
-      setAppliedNotification('Modo Automático ativado: o controlador EC regula as ventoinhas');
-    } else if (mode === 'max') {
-      onApplyFanSpeed(100, 100, 'max');
-      setAppliedNotification('Modo Turbo Máximo: ventoinhas travadas em 100%');
+    const res = await onApplyFanSpeed(manualCpu, manualGpu, 'custom');
+    if (res && !res.ok) {
+      setAppliedNotification({
+        text: res.message || 'Falha ao gravar em fan_speed (verifique permissões root/sudo)',
+        isError: true,
+      });
     } else {
-      onApplyFanSpeed(manualCpu, manualGpu, 'custom');
-      setAppliedNotification('Modo Personalizado ativado');
+      setAppliedNotification({
+        text:
+          res?.writtenToHardware
+            ? `Gravado no hardware via sysfs (nitro_sense/fan_speed): CPU=${manualCpu}%, GPU=${manualGpu}%`
+            : `Velocidades aplicadas: CPU=${manualCpu}%, GPU=${manualGpu}%`,
+      });
     }
-    setTimeout(() => setAppliedNotification(null), 3000);
+    setTimeout(() => setAppliedNotification(null), 4000);
   };
 
-  const handleSelectPreset = (presetKey: 'silent' | 'balanced' | 'gaming' | 'aggressive') => {
+  const handleSetMode = async (mode: 'auto' | 'custom' | 'max') => {
+    onUpdateFanConfig({ mode });
+    let res;
+    if (mode === 'auto') {
+      res = await onApplyFanSpeed(0, 0, 'auto');
+      setAppliedNotification({
+        text: res && !res.ok ? res.message || 'Erro ao ativar modo Auto' : 'Modo Automático ativado: controlador EC regula as ventoinhas',
+        isError: !!(res && !res.ok),
+      });
+    } else if (mode === 'max') {
+      res = await onApplyFanSpeed(100, 100, 'max');
+      setAppliedNotification({
+        text:
+          res && !res.ok
+            ? res.message || 'Erro ao ativar modo Máximo'
+            : `Modo Turbo Máximo ativado: ventoinhas em 100% (até ${ANV15_SPECS.maxCpuRpm} RPM)`,
+        isError: !!(res && !res.ok),
+      });
+    } else {
+      res = await onApplyFanSpeed(manualCpu, manualGpu, 'custom');
+      setAppliedNotification({
+        text: res && !res.ok ? res.message || 'Erro ao ativar modo Personalizado' : 'Modo Personalizado ativado',
+        isError: !!(res && !res.ok),
+      });
+    }
+    setTimeout(() => setAppliedNotification(null), 4000);
+  };
+
+  const handleSelectPreset = async (presetKey: 'silent' | 'balanced' | 'gaming' | 'aggressive') => {
     const newCurve = FAN_CURVE_PRESETS[presetKey];
+    const targetSpeed = interpolateFanCurve(currentCpuTemp, newCurve);
     onUpdateFanConfig({
+      mode: 'custom',
       activeCurvePreset: presetKey,
       customCurve: newCurve,
     });
-    setAppliedNotification(`Curva preset '${presetKey}' carregada com sucesso!`);
-    setTimeout(() => setAppliedNotification(null), 3000);
+    const res = await onApplyFanSpeed(targetSpeed, targetSpeed, 'custom', newCurve);
+    setAppliedNotification({
+      text:
+        res && !res.ok
+          ? res.message || 'Erro ao ativar curva'
+          : `Curva '${presetKey}' ativada no daemon (${targetSpeed}% @ ${currentCpuTemp}°C)!`,
+      isError: !!(res && !res.ok),
+    });
+    setTimeout(() => setAppliedNotification(null), 4000);
   };
 
   return (
     <div className="space-y-6">
       {/* Notification Toast */}
       {appliedNotification && (
-        <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 text-xs font-mono rounded-xl flex items-center justify-between shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+        <div
+          className={`p-3 border text-xs font-mono rounded-xl flex items-center justify-between shadow-lg animate-in fade-in slide-in-from-top-2 duration-200 ${
+            appliedNotification.isError
+              ? 'bg-red-950/90 border-red-500/60 text-red-200'
+              : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-200'
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-400" />
-            <span>{appliedNotification}</span>
+            <Check className={`w-4 h-4 ${appliedNotification.isError ? 'text-red-400' : 'text-emerald-400'}`} />
+            <span>{appliedNotification.text}</span>
           </div>
-          <span className="text-[10px] text-emerald-400/80 font-mono">
+          <span className="text-[10px] opacity-80 font-mono">
             {formatFanSpeedSysfs(manualCpu, manualGpu)}
           </span>
         </div>
@@ -116,7 +164,7 @@ export const FanControlView: React.FC<FanControlViewProps> = ({
               Controle de Velocidade das Ventoinhas
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Selecione o modo de operação do sistema térmico do Acer Nitro V15.
+              Selecione o modo de operação do sistema térmico do Acer Nitro V 15 (até {ANV15_SPECS.maxCpuRpm} RPM).
             </p>
           </div>
 
@@ -154,7 +202,7 @@ export const FanControlView: React.FC<FanControlViewProps> = ({
               }`}
             >
               <Zap className="w-3.5 h-3.5" />
-              Máximo (100%)
+              Máximo (100% / {ANV15_SPECS.maxCpuRpm} RPM)
             </button>
           </div>
         </div>
@@ -170,15 +218,15 @@ export const FanControlView: React.FC<FanControlViewProps> = ({
                 <Fan className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
               </div>
               <div>
-                <span className="text-xs font-mono text-slate-400 uppercase">Ventoinha</span>
-                <h3 className="text-sm font-bold text-white">CPU Cooler</h3>
+                <span className="text-xs font-mono text-slate-400 uppercase">Ventoinha 1 (Core i5-13420H)</span>
+                <h3 className="text-sm font-bold text-white">CPU Cooler • Real: {telemetry?.cpuFanRpm ?? 0} RPM</h3>
               </div>
             </div>
 
             <div className="text-right">
               <span className="text-xl font-black font-mono text-sky-400">{manualCpu}%</span>
               <div className="text-[10px] font-mono text-slate-400">
-                ~{calculateRpmFromPercent(manualCpu, 'cpu')} RPM
+                Alvo: ~{calculateRpmFromPercent(manualCpu, 'cpu')} RPM
               </div>
             </div>
           </div>
@@ -196,7 +244,7 @@ export const FanControlView: React.FC<FanControlViewProps> = ({
 
           <div className="flex justify-between text-[10px] font-mono text-slate-400 mt-2">
             <span>0% (Auto)</span>
-            <span>50%</span>
+            <span>50% (~5200 RPM)</span>
             <span>100% ({ANV15_SPECS.maxCpuRpm} RPM)</span>
           </div>
         </div>
@@ -209,15 +257,15 @@ export const FanControlView: React.FC<FanControlViewProps> = ({
                 <Fan className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
               </div>
               <div>
-                <span className="text-xs font-mono text-slate-400 uppercase">Ventoinha</span>
-                <h3 className="text-sm font-bold text-white">GPU Cooler</h3>
+                <span className="text-xs font-mono text-slate-400 uppercase">Ventoinha 2 (RTX 4060)</span>
+                <h3 className="text-sm font-bold text-white">GPU Cooler • Real: {telemetry?.gpuFanRpm ?? 0} RPM</h3>
               </div>
             </div>
 
             <div className="text-right">
               <span className="text-xl font-black font-mono text-purple-400">{manualGpu}%</span>
               <div className="text-[10px] font-mono text-slate-400">
-                ~{calculateRpmFromPercent(manualGpu, 'gpu')} RPM
+                Alvo: ~{calculateRpmFromPercent(manualGpu, 'gpu')} RPM
               </div>
             </div>
           </div>
@@ -235,7 +283,7 @@ export const FanControlView: React.FC<FanControlViewProps> = ({
 
           <div className="flex justify-between text-[10px] font-mono text-slate-400 mt-2">
             <span>0% (Auto)</span>
-            <span>50%</span>
+            <span>50% (~5200 RPM)</span>
             <span>100% ({ANV15_SPECS.maxGpuRpm} RPM)</span>
           </div>
         </div>
@@ -361,12 +409,15 @@ export const FanControlView: React.FC<FanControlViewProps> = ({
       {/* Interactive Canvas Fan Curve Component */}
       <FanCurveCanvas
         curve={fanConfig.customCurve}
-        onChange={(newCurve) =>
+        onChange={(newCurve) => {
+          const targetSpeed = interpolateFanCurve(currentCpuTemp, newCurve);
           onUpdateFanConfig({
+            mode: 'custom',
             customCurve: newCurve,
             activeCurvePreset: 'custom',
-          })
-        }
+          });
+          onApplyFanSpeed(targetSpeed, targetSpeed, 'custom', newCurve);
+        }}
         currentTemp={currentCpuTemp}
         currentCalculatedSpeed={currentCalculatedFanSpeed}
       />

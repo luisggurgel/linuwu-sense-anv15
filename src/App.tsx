@@ -82,43 +82,36 @@ export default function App() {
         body: JSON.stringify({ profile }),
       });
       if (res.ok) {
-        setTelemetry((prev) =>
-          prev
-            ? {
-                ...prev,
-                activeProfile: profile,
-                fanMode: profile === 'turbo' ? 'max' : profile === 'performance' ? 'custom' : 'auto',
-                cpuFanPercent: profile === 'turbo' ? 100 : profile === 'performance' ? 75 : 0,
-                gpuFanPercent: profile === 'turbo' ? 100 : profile === 'performance' ? 75 : 0,
-              }
-            : null
-        );
+        await fetchTelemetry();
       }
     } catch (err) {
       console.error('Failed to set profile:', err);
     }
   };
 
-  // Apply fan speed
-  const handleApplyFanSpeed = async (cpu: number, gpu: number, mode: 'auto' | 'custom' | 'max') => {
+  // Apply fan speed or dynamic curve
+  const handleApplyFanSpeed = async (
+    cpu: number,
+    gpu: number,
+    mode: 'auto' | 'custom' | 'max',
+    customCurve?: FanConfig['customCurve']
+  ): Promise<{ ok: boolean; writtenToHardware?: boolean; message?: string }> => {
     try {
-      await fetch('/api/fan-speed', {
+      const res = await fetch('/api/fan-speed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cpu, gpu, mode }),
+        body: JSON.stringify({ cpu, gpu, mode, customCurve }),
       });
-      setTelemetry((prev) =>
-        prev
-          ? {
-              ...prev,
-              fanMode: mode,
-              cpuFanPercent: cpu,
-              gpuFanPercent: gpu,
-            }
-          : null
-      );
-    } catch (err) {
+      const data = await res.json();
+      await fetchTelemetry();
+      return {
+        ok: res.ok && data.success !== false,
+        writtenToHardware: data.writtenToHardware,
+        message: data.message || data.error,
+      };
+    } catch (err: any) {
       console.error('Failed to set fan speed:', err);
+      return { ok: false, message: err?.message || 'Erro de conexão com o daemon local' };
     }
   };
 

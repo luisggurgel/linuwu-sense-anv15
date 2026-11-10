@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   mapEcModeToProfile,
+  mapPlatformProfileToId,
   formatFanSpeedSysfs,
   parseFanSpeedSysfs,
   calculateRpmFromPercent,
@@ -11,6 +12,16 @@ import {
   ANV15_SPECS,
 } from './fanMath';
 
+test('ANV15_SPECS reflects exact official Acer Nitro V 15 ANV15-52-52VN specifications', () => {
+  assert.ok(ANV15_SPECS.cpuModel.includes('i5-13420H'));
+  assert.ok(ANV15_SPECS.gpuModel.includes('RTX 4060'));
+  assert.ok(ANV15_SPECS.displaySpecs.includes('165 Hz'));
+  assert.ok(ANV15_SPECS.ramSpecs.includes('16 GB DDR5'));
+  assert.ok(ANV15_SPECS.osTarget.includes('Fedora'));
+  assert.equal(ANV15_SPECS.maxCpuRpm, 8600);
+  assert.equal(ANV15_SPECS.maxGpuRpm, 8600);
+});
+
 test('mapEcModeToProfile correctly maps ANV15 EC modes', () => {
   assert.equal(mapEcModeToProfile(0), 'turbo');
   assert.equal(mapEcModeToProfile(1), 'performance');
@@ -18,6 +29,15 @@ test('mapEcModeToProfile correctly maps ANV15 EC modes', () => {
   assert.equal(mapEcModeToProfile(3), 'quiet');
   assert.equal(mapEcModeToProfile(4), 'eco');
   assert.equal(mapEcModeToProfile(99), 'balanced'); // fallback
+});
+
+test('mapPlatformProfileToId correctly maps Linux ACPI platform_profile values', () => {
+  assert.equal(mapPlatformProfileToId('low-power\n'), 'eco');
+  assert.equal(mapPlatformProfileToId('quiet'), 'quiet');
+  assert.equal(mapPlatformProfileToId('balanced'), 'balanced');
+  assert.equal(mapPlatformProfileToId('balanced-performance'), 'performance');
+  assert.equal(mapPlatformProfileToId('performance'), 'turbo');
+  assert.equal(mapPlatformProfileToId('unknown'), 'balanced');
 });
 
 test('formatFanSpeedSysfs formats valid comma-separated cpu,gpu string', () => {

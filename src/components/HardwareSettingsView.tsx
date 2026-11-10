@@ -46,10 +46,10 @@ export const HardwareSettingsView: React.FC<HardwareSettingsViewProps> = ({
       <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl backdrop-blur-sm">
         <h2 className="text-xl font-black text-white flex items-center gap-2">
           <Cpu className="w-5 h-5 text-red-500" />
-          Configurações de Hardware Acer Nitro V15
+          Configurações de Hardware Acer Nitro V 15 (ANV15-52-52VN)
         </h2>
         <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-          Recursos específicos do modelo ANV15-52-52VN integrados via Linuwu-Sense (gerenciamento de saúde da bateria, display 144Hz e periféricos).
+          Recursos oficiais do modelo ANV15-52-52VN integrados via Linuwu-Sense no Fedora Linux (bateria de 57 Wh, painel IPS Full HD de 165 Hz, teclado ABNT2 retroiluminado branco e portas USB 3.2 / Thunderbolt 4).
         </p>
       </div>
 
@@ -70,7 +70,7 @@ export const HardwareSettingsView: React.FC<HardwareSettingsViewProps> = ({
                     onUpdateSettings({ batteryLimiter: e.target.checked });
                     showToast(
                       e.target.checked
-                        ? 'Limite de carga de 80% ATIVADO (Preserva vida útil da bateria)'
+                        ? 'Limite de carga de 80% ATIVADO (Preserva vida útil da bateria de 57 Wh)'
                         : 'Limite de carga DESATIVADO (Carga total até 100%)'
                     );
                   }}
@@ -91,7 +91,7 @@ export const HardwareSettingsView: React.FC<HardwareSettingsViewProps> = ({
             </div>
 
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              Interrompe a recarga ao atingir 80% da capacidade. Essencial para notebooks gamers conectados à tomada com frequência, evitando estresse químico e inchaço das células de íons de lítio.
+              Interrompe a recarga ao atingir 80% da capacidade da bateria de 57 Wh (4 células). Essencial ao usar a RTX 4060 conectada à fonte de 135W na tomada, evitando degradação química das células de íons de lítio.
             </p>
           </div>
 
@@ -118,7 +118,7 @@ export const HardwareSettingsView: React.FC<HardwareSettingsViewProps> = ({
                     onUpdateSettings({ lcdOverdrive: e.target.checked });
                     showToast(
                       e.target.checked
-                        ? 'LCD Overdrive ATIVADO (Menor tempo de resposta para jogos)'
+                        ? 'LCD Overdrive ATIVADO no painel IPS de 165 Hz'
                         : 'LCD Overdrive DESATIVADO'
                     );
                   }}
@@ -130,10 +130,10 @@ export const HardwareSettingsView: React.FC<HardwareSettingsViewProps> = ({
             </div>
 
             <h3 className="text-base font-bold text-white">
-              LCD Overdrive (3ms Response)
+              LCD Overdrive (Painel 15,6" IPS 165 Hz)
             </h3>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              Acelera a transição pixel-a-pixel no painel IPS de 144Hz do Nitro V 15, eliminando rastros (ghosting) e melhorando a clareza em jogos de tiro em primeira pessoa.
+              Acelera a transição pixel-a-pixel no painel IPS Full HD (1920x1080) de 165 Hz do ANV15-52-52VN, reduzindo rastros (ghosting) em jogos competitivos.
             </p>
           </div>
 
@@ -161,7 +161,7 @@ export const HardwareSettingsView: React.FC<HardwareSettingsViewProps> = ({
                     showToast(
                       e.target.checked
                         ? 'Desligamento automático do teclado (30s) ATIVADO'
-                        : 'Iluminação do teclado SEMPRE LIGADA'
+                        : 'Retroiluminação branca do teclado ABNT2 SEMPRE LIGADA'
                     );
                   }}
                   aria-label="Alternar desligamento automático da luz do teclado"
@@ -172,10 +172,10 @@ export const HardwareSettingsView: React.FC<HardwareSettingsViewProps> = ({
             </div>
 
             <h3 className="text-base font-bold text-white">
-              Timeout da Iluminação do Teclado
+              Timeout do Teclado ABNT2 (Retroiluminado Branco)
             </h3>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              Desliga a luz de fundo do teclado após 30 segundos de inatividade para economizar energia. Se desativado, o teclado permanece aceso continuamente.
+              Desliga a retroiluminação branca do teclado ABNT2 após 30 segundos de inatividade para economizar bateria. Se desativado, permanece aceso continuamente.
             </p>
           </div>
 
@@ -217,10 +217,10 @@ export const HardwareSettingsView: React.FC<HardwareSettingsViewProps> = ({
             </div>
 
             <h3 className="text-base font-bold text-white">
-              Carregamento USB com Notebook Desligado
+              Carregamento USB 3.2 com Notebook Desligado
             </h3>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              Permite carregar smartphones e acessórios pela porta USB 3.2 mesmo com o Nitro V15 suspenso ou desligado, com corte de proteção de bateria.
+              Permite carregar periféricos pela porta USB 3.2 Gen 1 energizada mesmo com o ANV15-52-52VN desligado, respeitando o corte de segurança da bateria.
             </p>
           </div>
 
@@ -229,6 +229,45 @@ export const HardwareSettingsView: React.FC<HardwareSettingsViewProps> = ({
             <code className="text-slate-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
               usb_charging
             </code>
+          </div>
+        </div>
+      </div>
+
+      {/* Official Technical Sheet Card for ANV15-52-52VN */}
+      <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-200 mb-3">
+          Especificações Oficiais de Fábrica — Acer Nitro V 15 (ANV15-52-52VN)
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs font-mono">
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <span className="text-slate-500 block">PROCESSADOR (CPU)</span>
+            <span className="text-white font-bold">Intel Core i5-13420H (13ª Ger)</span>
+            <span className="text-slate-400 block text-[11px]">8 Núcleos (4P + 4E) / 12 Threads • 12MB Cache • Até 4.60 GHz</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <span className="text-slate-500 block">PLACA DE VÍDEO (GPU)</span>
+            <span className="text-emerald-400 font-bold">NVIDIA GeForce RTX 4060 (8 GB)</span>
+            <span className="text-slate-400 block text-[11px]">8 GB GDDR6 dedicada + Intel UHD Graphics integrada</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <span className="text-slate-500 block">MEMÓRIA E ARMAZENAMENTO</span>
+            <span className="text-white font-bold">16 GB DDR5 5200 MHz</span>
+            <span className="text-slate-400 block text-[11px]">Expansível até 32 GB • SSD 512 GB NVMe PCIe 4.0 x4</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <span className="text-slate-500 block">TELA (DISPLAY)</span>
+            <span className="text-white font-bold">15,6" IPS Full HD 165 Hz</span>
+            <span className="text-slate-400 block text-[11px]">1920x1080 • 300 nits • Acer ComfyView antirreflexo</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <span className="text-slate-500 block">CONECTIVIDADE E PORTAS</span>
+            <span className="text-white font-bold">Thunderbolt 4 / USB-C + HDMI 2.1</span>
+            <span className="text-slate-400 block text-[11px]">3x USB 3.2 Gen 1 • RJ-45 Gigabit • Wi-Fi 6</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <span className="text-slate-500 block">SISTEMA E KERNEL MODULE</span>
+            <span className="text-sky-400 font-bold">Fedora Linux (x86_64)</span>
+            <span className="text-slate-400 block text-[11px]">quirk_acer_nitro_anv15_52 (nitro_v4=1 / ec_mmio_profile=1)</span>
           </div>
         </div>
       </div>
